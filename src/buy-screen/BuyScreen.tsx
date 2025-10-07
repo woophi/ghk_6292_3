@@ -4,32 +4,39 @@ import { ButtonMobile } from '@alfalab/core-components/button/mobile';
 import { Gap } from '@alfalab/core-components/gap';
 import { SuperEllipse } from '@alfalab/core-components/icon-view/super-ellipse';
 import { NumberInput } from '@alfalab/core-components/number-input';
-import { Status } from '@alfalab/core-components/status';
+import { Switch } from '@alfalab/core-components/switch';
 import { Typography } from '@alfalab/core-components/typography';
 import { ArrowRightMIcon } from '@alfalab/icons-glyph/ArrowRightMIcon';
 import { InformationCircleLineSIcon } from '@alfalab/icons-glyph/InformationCircleLineSIcon';
-import { InformationCircleSIcon } from '@alfalab/icons-glyph/InformationCircleSIcon';
-import { Fragment, useState } from 'react';
+import { useState } from 'react';
 import rubIcon from '../assets/rub.png';
 import { STOCK_WORDS } from '../constants';
 import { LS, LSKeys } from '../ls';
-import { BotItem, StockItem } from '../types';
+import { StockItem } from '../types';
 import { sendDataToGA } from '../utils/events';
+import { round } from '../utils/round';
 import { formatWord } from '../utils/words';
 import { bsSt } from './style.css';
 
 type Props = {
   stockItem: StockItem;
-  bot: BotItem;
   setThx: (v: boolean) => void;
 };
 
-export const BuyScreen = ({ stockItem, bot, setThx }: Props) => {
+const setka = 83;
+
+const intervalCalc = (fromPrice: number, toPrice: number, price: number) => {
+  const intervalPercent = (toPrice / fromPrice) ** (1 / setka) - 1;
+
+  return round(intervalPercent * price, 2);
+};
+
+export const BuyScreen = ({ stockItem, setThx }: Props) => {
   const [lots, setLots] = useState(0);
   const [showBs, setShowBs] = useState(false);
+  const [showMoreInfo, setShowMoreInfo] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [botConnected, setBotConnected] = useState(false);
-  const [showBotInfo, setShowBotInfo] = useState(false);
+  const [checked2, setChecked2] = useState(false);
 
   const submit = () => {
     if (lots === 0) {
@@ -39,14 +46,19 @@ export const BuyScreen = ({ stockItem, bot, setThx }: Props) => {
     sendDataToGA({
       sum: stockItem.price_today * lots * stockItem.lot,
       ticker: stockItem.ticker,
-      bot: botConnected ? bot.name : 'none',
-      risk: 'none',
+      smart: checked2 ? 'on' : 'off',
     }).then(() => {
       LS.setItem(LSKeys.ShowThx, true);
       setThx(true);
       setLoading(false);
     });
   };
+
+  const fromPrice = round(stockItem.price_today * 0.85, 2);
+  const toPrice = round(stockItem.price_today * 1.15, 2);
+  const interval = intervalCalc(fromPrice, toPrice, stockItem.price_today);
+  const incomeFrom = (interval / stockItem.price_today) * 100;
+  const incomeTo = incomeFrom * 3;
 
   return (
     <>
@@ -113,40 +125,27 @@ export const BuyScreen = ({ stockItem, bot, setThx }: Props) => {
           />
         </div>
 
-        <div className={bsSt.botContainer({ connected: botConnected })}>
-          {botConnected && (
-            <div>
-              <Status view="contrast" color="green" size={20}>
-                <Typography.Text view="secondary-small" weight="bold">
-                  Подключено
-                </Typography.Text>
-              </Status>
-            </div>
-          )}
-          <div>
-            <div className={bsSt.row} onClick={() => setShowBotInfo(true)} style={{ cursor: 'pointer' }}>
-              <Typography.TitleMobile tag="h4" view="xsmall" font="system" weight="semibold">
-                {bot.name}
-              </Typography.TitleMobile>
-              <InformationCircleSIcon width={14} height={14} color="#B8B9C0" />
-            </div>
-            <Typography.Text view="primary-small" tag="p" defaultMargins={false} color="secondary">
-              {bot.description}
-            </Typography.Text>
-          </div>
-
-          <ButtonMobile
-            view="secondary"
-            size={32}
+        <div className={bsSt.box}>
+          <Switch
+            block={true}
+            reversed={true}
+            checked={checked2}
+            label="Умная ИИ заявка"
+            hint="Будет торговать за вас, используя проверенные алгоритмы"
+            onChange={() => setChecked2(prevState => !prevState)}
+          />
+          <Typography.Text
             onClick={() => {
-              if (!botConnected) {
-                window.gtag('event', '6332_bot_activate', { ticker: stockItem.ticker, var: 'var1', bot: bot.name });
-              }
-              setBotConnected(!botConnected);
+              window.gtag('event', '6292_more_info', { ticker: stockItem.ticker, var: 'var3' });
+              setShowMoreInfo(true);
             }}
+            view="primary-small"
+            color="link"
+            tag="p"
+            defaultMargins={false}
           >
-            {botConnected ? 'Отключить' : 'Подключить'}
-          </ButtonMobile>
+            Подробнее
+          </Typography.Text>
         </div>
       </div>
       <Gap size={128} />
@@ -225,76 +224,56 @@ export const BuyScreen = ({ stockItem, bot, setThx }: Props) => {
         </div>
       </BottomSheet>
       <BottomSheet
-        open={showBotInfo}
+        open={showMoreInfo}
         onClose={() => {
-          setShowBotInfo(false);
+          setShowMoreInfo(false);
         }}
         contentClassName={bsSt.btmContent}
-        title={`Робот ${bot.name}`}
+        title="Умная ИИ заявка"
         hasCloser
         stickyHeader
-        actionButton={
-          <ButtonMobile
-            view="primary"
-            block
-            onClick={() => {
-              setShowBotInfo(false);
-            }}
-          >
-            Понятно
-          </ButtonMobile>
-        }
       >
         <div className={bsSt.container}>
-          <Typography.Text view="primary-medium" tag="p" defaultMargins={false}>
-            {bot.text1}
-          </Typography.Text>
-          <Typography.Text view="primary-medium" tag="p" defaultMargins={false} weight="bold">
-            Как это работает
-          </Typography.Text>
-          <Typography.Text view="primary-medium" tag="p" defaultMargins={false}>
-            {bot.text2.split('\n').map((line, index) => (
-              <Fragment key={index}>
-                {line}
-                <br />
-              </Fragment>
-            ))}
-          </Typography.Text>
-          <div className={bsSt.box}>
-            <Typography.Text view="primary-medium" tag="p" defaultMargins={false} weight="bold">
-              Пример
+          <div>
+            <Typography.Text view="primary-small" color="secondary" tag="p">
+              Ценовой диапазон
             </Typography.Text>
-            <Typography.Text view="primary-medium" tag="p" defaultMargins={false}>
-              {bot.text3.split('\n').map((line, index) => (
-                <Fragment key={index}>
-                  {line}
-                  <br />
-                </Fragment>
-              ))}
+            <Typography.Text view="primary-medium" color="primary" tag="p" defaultMargins={false}>
+              {fromPrice.toLocaleString('ru')} ₽ — {toPrice.toLocaleString('ru')} ₽
             </Typography.Text>
           </div>
-          <Typography.Text view="primary-medium" tag="p" defaultMargins={false} weight="bold">
-            Метрики
-          </Typography.Text>
-          <Typography.Text view="primary-medium" tag="p" defaultMargins={false}>
-            {bot.text4.split('\n').map((line, index) => (
-              <Fragment key={index}>
-                {line}
-                <br />
-              </Fragment>
-            ))}
-          </Typography.Text>
-          <Typography.Text view="primary-medium" tag="p" defaultMargins={false} weight="bold">
-            Что ещё важно знать
-          </Typography.Text>
-          <Typography.Text view="primary-medium" tag="p" defaultMargins={false}>
-            {bot.text5.split('\n').map((line, index) => (
-              <Fragment key={index}>
-                {line}
-                <br />
-              </Fragment>
-            ))}
-          </Typography.Text>
+          <div>
+            <Typography.Text view="primary-small" color="secondary" tag="p">
+              Количество сеток
+            </Typography.Text>
+            <Typography.Text view="primary-medium" color="primary" tag="p" defaultMargins={false}>
+              {setka}
+            </Typography.Text>
+          </div>
+          <div>
+            <Typography.Text view="primary-small" color="secondary" tag="p">
+              Интервал
+            </Typography.Text>
+            <Typography.Text view="primary-medium" color="primary" tag="p" defaultMargins={false}>
+              {interval.toLocaleString('ru')} ₽
+            </Typography.Text>
+          </div>
+          <div>
+            <Typography.Text view="primary-small" color="secondary" tag="p">
+              Прибыль
+            </Typography.Text>
+            <Typography.Text view="primary-medium" color="primary" tag="p" defaultMargins={false}>
+              {incomeFrom.toLocaleString('ru')} % — {incomeTo.toLocaleString('ru')} %
+            </Typography.Text>
+          </div>
+          <div>
+            <Typography.Text view="primary-small" color="secondary" tag="p">
+              Скользящий стоп ордер
+            </Typography.Text>
+            <Typography.Text view="primary-medium" color="primary" tag="p" defaultMargins={false}>
+              5 %
+            </Typography.Text>
+          </div>
         </div>
       </BottomSheet>
     </>

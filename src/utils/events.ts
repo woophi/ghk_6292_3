@@ -10,8 +10,7 @@ declare global {
 type Payload = {
   sum: number;
   ticker: string;
-  bot: string | 'none';
-  risk: string | 'none';
+  smart: 'on' | 'off';
 };
 
 export const sendDataToGA = async (payload: Payload) => {
@@ -22,7 +21,7 @@ export const sendDataToGA = async (payload: Payload) => {
     }-${now.getDate()} ${now.getHours()}:${now.getMinutes()}:${now.getSeconds()}`;
 
     await fetch(
-      'https://script.google.com/macros/s/AKfycbwtgmTfVMt0QwT3TP0JvvJlX_znyF9_-X6fdhQupQKaW0QVoMpAtPr4AV43j8eUdXad/exec',
+      'https://script.google.com/macros/s/AKfycbzZRZfThLlcA2oORQM9TBu_LiPseC1gfQ7i7peTmaI3UI86hCXfJkAPDxIo8XbsjfLcog/exec',
       {
         redirect: 'follow',
         method: 'POST',
