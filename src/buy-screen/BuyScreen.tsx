@@ -36,7 +36,7 @@ export const BuyScreen = ({ stockItem, setThx }: Props) => {
   const [showBs, setShowBs] = useState(false);
   const [showMoreInfo, setShowMoreInfo] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [checked2, setChecked2] = useState(false);
+  const [checked2, setChecked2] = useState(true);
 
   const submit = () => {
     if (lots === 0) {
